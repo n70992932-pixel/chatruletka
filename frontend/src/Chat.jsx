@@ -102,16 +102,6 @@ function App() {
       axios.get(`${API_URL}/turn`).catch(() => {});
     }, 14 * 60 * 1000);
 
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('success') === 'true') {
-      const uId = params.get('user_id');
-      axios.post(`${API_URL}/payment/confirm`, { userId: uId }).then(() => {
-        alert("Premium muvaffaqiyatli faollashtirildi!");
-        window.history.replaceState({}, document.title, "/");
-        if (userProfile) setUserProfile(prev => ({...prev, isPremium: true}));
-      }).catch(console.error);
-    }
-
     return () => clearInterval(keepAlive);
   }, []);
 
@@ -506,26 +496,6 @@ function App() {
       }
     } catch (err) {
       alert("Xatolik yuz berdi");
-    } finally {
-      setPaymentLoading(false);
-    }
-  };
-
-  const payForPremium = async () => {
-    setPaymentLoading(true);
-    try {
-      const res = await axios.post(`${API_URL}/payment/test-checkout`, { userId: userProfile.id });
-      if (res.data.url) {
-        window.location.href = res.data.url;
-      } else if (res.data.success) {
-        setUserProfile(prev => ({ ...prev, isPremium: true }));
-        setShowPremiumModal(false);
-        alert("Tabriklaymiz! Siz Premium sotib oldingiz.");
-        startSearch(socket, targetGender);
-      }
-    } catch (err) {
-      console.error(err);
-      alert("To'lovda xatolik yuz berdi!");
     } finally {
       setPaymentLoading(false);
     }
