@@ -7,17 +7,66 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const { v4: uuidv4 } = require('uuid');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const validator = require('validator');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
 const dbService = require('./db');
 const User = require('./models/User');
 
+const ALLOWED_ORIGINS = [
+  'https://chatruletka.vercel.app',
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:5175',
+];
+
 const app = express();
-app.use(cors());
-app.use(express.json());
+
+// 1. Helmet — HTTP xavfsizlik headerlari
+app.use(helmet());
+
+// 2. CORS — faqat ruxsat berilgan manzillardan
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS: ruxsat berilmagan manba'));
+    }
+  },
+  methods: ['GET', 'POST'],
+  credentials: true
+}));
+
+app.use(express.json({ limit: '10kb' })); // Body hajmini cheklash
+
+// 3. Rate Limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 daqiqa
+  max: 20, // 15 daqiqada max 20 urinish
+  message: { error: "Juda ko'p urinish. 15 daqiqadan so'ng qayta urining." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const generalLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 daqiqa
+  max: 100,
+  message: { error: "Juda ko'p so'rov. Biroz kuting." },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/', generalLimiter);
+app.use('/api/auth/', authLimiter);
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] }
+  cors: {
+    origin: ALLOWED_ORIGINS,
+    methods: ["GET", "POST"]
+  }
 });
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -114,14 +163,34 @@ const updateUserStatus = async (id, updates) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const { email, password, name, age, gender, country, deviceId } = req.body;
-    let user = await findUserByEmail(email);
+
+    // Input Validation
+    if (!email || !validator.isEmail(email)) return res.status(400).json({ error: "Email noto'g'ri." });
+    if (!password || password.length < 6) return res.status(400).json({ error: "Parol kamida 6 ta belgi bo'lishi kerak." });
+    if (!name || typeof name !== 'string' || name.trim().length < 2 || name.trim().length > 50)
+      return res.status(400).json({ error: "Ism 2-50 belgi orasida bo'lishi kerak." });
+    const ageNum = parseInt(age);
+    if (isNaN(ageNum) || ageNum < 18 || ageNum > 100) return res.status(400).json({ error: "Yosh 18-100 orasida bo'lishi kerak." });
+    if (!['Erkak', 'Ayol'].includes(gender)) return res.status(400).json({ error: "Jins noto'g'ri." });
+    if (!country || typeof country !== 'string' || country.trim().length < 2) return res.status(400).json({ error: "Davlat nomi noto'g'ri." });
+
+    const sanitizedEmail = validator.normalizeEmail(email);
+    let user = await findUserByEmail(sanitizedEmail);
     if (user) return res.status(400).json({ error: "Bu email band qilingan." });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    user = await saveNewUser({ email, password: hashedPassword, name, age, gender, country, deviceId });
+    const hashedPassword = await bcrypt.hash(password, 12);
+    user = await saveNewUser({
+      email: sanitizedEmail,
+      password: hashedPassword,
+      name: name.trim(),
+      age: ageNum,
+      gender,
+      country: country.trim(),
+      deviceId
+    });
 
     const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id || user.id, name, age, gender, country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
+    res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server xatosi" });
@@ -131,7 +200,13 @@ app.post('/api/auth/register', async (req, res) => {
 app.post('/api/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;
-    const user = await findUserByEmail(email);
+
+    // Input Validation
+    if (!email || !validator.isEmail(email)) return res.status(400).json({ error: "Email noto'g'ri." });
+    if (!password || typeof password !== 'string') return res.status(400).json({ error: "Parol noto'g'ri." });
+
+    const sanitizedEmail = validator.normalizeEmail(email);
+    const user = await findUserByEmail(sanitizedEmail);
     if (!user) return res.status(400).json({ error: "Email yoki parol xato." });
 
     const isMatch = await bcrypt.compare(password, user.password);
