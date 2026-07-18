@@ -1,4 +1,5 @@
 require('dotenv').config();
+const dns = require('dns');
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -14,6 +15,9 @@ const nodemailer = require('nodemailer');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
 const dbService = require('./db');
 const User = require('./models/User');
+
+// Render kabi serverlarda IPv6 (ENETUNREACH) xatosini oldini olish uchun
+dns.setDefaultResultOrder('ipv4first');
 
 const ALLOWED_ORIGINS = [
   'https://chatruletka.vercel.app',
