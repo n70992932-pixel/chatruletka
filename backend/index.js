@@ -115,9 +115,12 @@ const findUserById = async (id) => {
 };
 
 const saveNewUser = async (userData) => {
+  // XAVFSIZLIK: admin faqat ADMIN_EMAIL orqali tayinlanadi
+  const adminEmail = process.env.ADMIN_EMAIL?.toLowerCase().trim();
+  const isAdmin = adminEmail && userData.email?.toLowerCase().trim() === adminEmail;
+
   if (dbService.isConnected()) {
-    const user = new User(userData);
-    if ((await User.countDocuments()) === 0) user.isAdmin = true;
+    const user = new User({ ...userData, isAdmin });
     await user.save();
     return user;
   }
@@ -126,9 +129,8 @@ const saveNewUser = async (userData) => {
   userData.isPremium = false;
   userData.friends = [];
   userData.reportCount = 0;
-  if (mockUsers.length === 0) userData.isAdmin = true;
-  else userData.isAdmin = false;
-  
+  userData.isAdmin = isAdmin;
+
   mockUsers.push(userData);
   saveMockDB();
   return userData;
