@@ -242,6 +242,21 @@ app.post('/api/auth/login', async (req, res) => {
     if (user.isBanned) return res.status(403).json({ error: "Sizning akkauntingiz bloklangan!" });
 
     if (!user.isVerified) {
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      user.verificationCode = verificationCode;
+      await updateUser(user);
+
+      try {
+        await transporter.sendMail({
+          from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
+          to: sanitizedEmail,
+          subject: 'Chatruletka - Elektron pochtani tasdiqlash (Qayta yuborildi)',
+          text: `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+        });
+      } catch (mailErr) {
+        console.error("Qayta xat yuborishda xatolik:", mailErr);
+      }
+
       return res.json({ requiresVerification: true, email: sanitizedEmail });
     }
 
