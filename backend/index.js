@@ -443,6 +443,7 @@ io.use((socket, next) => {
 });
 
 let waitingUsers = [];
+const friendRequests = {}; // Room ID → Set(socketId) — global scope'da saqlanadi
 
 const broadcastOnlineCount = () => {
   io.emit('online-count', io.engine.clientsCount);
@@ -500,6 +501,7 @@ io.on('connection', (socket) => {
       if (room !== socket.id) {
         socket.to(room).emit('partner-disconnected');
         socket.leave(room);
+        delete friendRequests[room];
       }
     });
 
@@ -601,11 +603,12 @@ io.on('connection', (socket) => {
   socket.on('add-friend', async () => {
     const room = Array.from(socket.rooms).find(r => r.startsWith('room-'));
     if (!room) return;
-    
-    const friendRequests = {};
+
+    // Global friendRequests ga qo'shamiz (handler ichida emas!)
     if (!friendRequests[room]) friendRequests[room] = new Set();
     friendRequests[room].add(socket.id);
-    
+
+    // Ikki tomon ham bosganida
     if (friendRequests[room].size === 2) {
       const usersInRoom = Array.from(io.sockets.adapter.rooms.get(room) || []);
       if (usersInRoom.length === 2) {
@@ -616,16 +619,20 @@ io.on('connection', (socket) => {
            const user2 = await findUserById(u2.user._id || u2.user.id);
            if (!user1.friends) user1.friends = [];
            if (!user2.friends) user2.friends = [];
-           
-           if (!user1.friends.includes(user2._id || user2.id)) user1.friends.push(user2._id || user2.id);
-           if (!user2.friends.includes(user1._id || user1.id)) user2.friends.push(user1._id || user1.id);
-           
+
+           if (!user1.friends.includes(String(user2._id || user2.id)))
+             user1.friends.push(String(user2._id || user2.id));
+           if (!user2.friends.includes(String(user1._id || user1.id)))
+             user2.friends.push(String(user1._id || user1.id));
+
            await updateUser(user1);
            await updateUser(user2);
-           
+
            io.to(room).emit('friend-added');
         }
       }
+      // Xotira tozalash
+      delete friendRequests[room];
     }
   });
 
@@ -641,6 +648,7 @@ io.on('connection', (socket) => {
     rooms.forEach(room => {
       if (room !== socket.id) {
         socket.to(room).emit('partner-disconnected');
+        delete friendRequests[room];
       }
     });
     broadcastOnlineCount();
