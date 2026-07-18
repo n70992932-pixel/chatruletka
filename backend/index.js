@@ -71,6 +71,7 @@ const generalLimiter = rateLimit({
 app.use('/api/', generalLimiter);
 app.use('/api/auth/', authLimiter);
 
+app.set('trust proxy', 1); // Render uchun kerak
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
