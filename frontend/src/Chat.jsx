@@ -328,10 +328,7 @@ function App() {
   };
 
   const handleStartClick = () => {
-    if (targetGender !== 'Barchasi' && !userProfile.isPremium) {
-      setShowPremiumModal(true);
-      return;
-    }
+    // Premium cheklovi vaqtinchalik olib tashlandi
     startSearch(socket, targetGender);
   };
 
@@ -726,8 +723,8 @@ function App() {
                     className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-4 text-lg text-white focus:outline-none focus:border-primary text-center appearance-none cursor-pointer"
                   >
                     <option value="Barchasi" className="bg-slate-800">🧑‍🤝‍🧑 Barchasi bilan</option>
-                    <option value="Ayol" className="bg-slate-800">👩 Faqat Qizlar (Premium)</option>
-                    <option value="Erkak" className="bg-slate-800">👨 Faqat Yigitlar (Premium)</option>
+                    <option value="Ayol" className="bg-slate-800">👩 Faqat Qizlar</option>
+                    <option value="Erkak" className="bg-slate-800">👨 Faqat Yigitlar</option>
                   </select>
                 </div>
                 <button onClick={handleStartClick} className="w-full bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary py-4 rounded-2xl text-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transform hover:scale-[1.02] transition-all">
