@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Shield, Ban, Unlock, Users, Star, ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const API_URL = 'https://chatruletka-sula.onrender.com/api';
+const API_URL = `${import.meta.env.VITE_BACKEND_URL || 'https://chatruletka-sula.onrender.com'}/api`;
 
 function Admin() {
   const [users, setUsers] = useState([]);

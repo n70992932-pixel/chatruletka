@@ -7,8 +7,9 @@ import * as nsfwjs from 'nsfwjs';
 import { Video, VideoOff, Mic, MicOff, SkipForward, Play, ShieldAlert, User, MapPin, StopCircle, Users, Send, AlertTriangle, LogIn, UserPlus, Star, CheckCircle, Shield, Globe, X, MessageSquare, MonitorUp, Gift, Sun, Moon, Mic2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const SOCKET_SERVER = 'https://chatruletka-sula.onrender.com';
-const API_URL = 'https://chatruletka-sula.onrender.com/api';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://chatruletka-sula.onrender.com';
+const SOCKET_SERVER = BACKEND_URL;
+const API_URL = `${BACKEND_URL}/api`;
 const COUNTRIES = [
   "O'zbekiston", "Qozog'iston", "Qirg'iziston", "Tojikiston", 
   "Rossiya", "Turkiya", "AQSh", "Janubiy Koreya", "Boshqa"
@@ -95,6 +96,12 @@ function App() {
       setTurnServers(res.data.iceServers);
     }).catch(console.error);
 
+    // Keep-alive: Render bepul tarifi 15 daqiqa faolsizlikdan keyin uxlab qoladi
+    // Har 14 daqiqada ping yuborib uni uyg'otib turamiz
+    const keepAlive = setInterval(() => {
+      axios.get(`${API_URL}/turn`).catch(() => {});
+    }, 14 * 60 * 1000);
+
     const params = new URLSearchParams(window.location.search);
     if (params.get('success') === 'true') {
       const uId = params.get('user_id');
@@ -104,6 +111,8 @@ function App() {
         if (userProfile) setUserProfile(prev => ({...prev, isPremium: true}));
       }).catch(console.error);
     }
+
+    return () => clearInterval(keepAlive);
   }, []);
 
   useEffect(() => {
