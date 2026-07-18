@@ -660,152 +660,151 @@ function App() {
         </div>
       </header>
 
-      <main className="flex-1 w-full h-full relative flex items-center justify-center p-4 mt-16 mb-24 max-w-7xl mx-auto gap-4">
-        <div className="relative flex-1 aspect-video rounded-3xl overflow-hidden glass shadow-2xl bg-black">
-          {appState === 'IN_ROOM' && partnerProfile && (
-            <div className="absolute top-6 left-6 z-30 glass px-6 py-3 rounded-2xl flex flex-col gap-1 shadow-2xl animate-fade-in pointer-events-none">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-lg">{partnerProfile.name}</span>
-                <span className="bg-white/20 px-2 py-0.5 rounded-full text-xs">{partnerProfile.age}</span>
-                <span className="bg-primary/40 px-2 py-0.5 rounded-full text-xs">{partnerProfile.gender}</span>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-white/80">
-                <MapPin size={14} /> {partnerProfile.country}
-              </div>
-            </div>
-          )}
+      <main className="flex-1 w-full h-full relative overflow-hidden bg-black">
+        {/* Full Screen Remote Video */}
+        <div className="absolute inset-0 z-0 bg-gray-900">
+          <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
+        </div>
 
-          {appState === 'IDLE' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-10 p-6">
-              <p className="text-2xl font-light mb-8 text-center">Yangi do'stlar orttirishga tayyormisiz?</p>
-              
-              <div className="flex flex-col items-center gap-6 mb-8 w-full max-w-xs">
-                <div className="w-full">
+        {/* IDLE & SEARCHING Overlays */}
+        {(appState === 'IDLE' || appState === 'SEARCHING') && (
+          <div className="absolute inset-0 bg-black/80 z-10 flex flex-col items-center justify-center">
+            {appState === 'IDLE' ? (
+              <div className="flex flex-col items-center p-8 glass rounded-3xl animate-fade-in shadow-2xl max-w-md w-full mx-4 text-center">
+                <h2 className="text-3xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">OmeTV Uslubi</h2>
+                <p className="text-white/70 mb-8">Yangi do'stlar orttirishga tayyormisiz?</p>
+                <div className="w-full mb-8">
                   <select 
                     value={targetGender} 
                     onChange={e => setTargetGender(e.target.value)} 
-                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-primary text-center appearance-none"
+                    className="w-full bg-white/10 border border-white/20 rounded-2xl px-4 py-4 text-lg text-white focus:outline-none focus:border-primary text-center appearance-none cursor-pointer"
                   >
                     <option value="Barchasi" className="bg-slate-800">🧑‍🤝‍🧑 Barchasi bilan</option>
                     <option value="Ayol" className="bg-slate-800">👩 Faqat Qizlar (Premium)</option>
                     <option value="Erkak" className="bg-slate-800">👨 Faqat Yigitlar (Premium)</option>
                   </select>
                 </div>
+                <button onClick={handleStartClick} className="w-full bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary py-4 rounded-2xl text-xl font-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/30 transform hover:scale-[1.02] transition-all">
+                  <Play fill="currentColor" size={24} /> Boshlash
+                </button>
               </div>
-
-              <button onClick={handleStartClick} className="bg-gradient-to-r from-primary to-accent hover:from-accent hover:to-primary px-12 py-5 rounded-full text-xl font-bold flex items-center gap-2 shadow-lg shadow-primary/30 transform hover:scale-105 transition-all">
-                <Play fill="currentColor" size={28} /> Boshlash
-              </button>
-            </div>
-          )}
-          
-          {appState === 'SEARCHING' && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 z-10">
-              <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-              <p className="text-xl animate-pulse text-white/80">Suhbatdosh qidirilmoqda...</p>
-            </div>
-          )}
-
-          {/* Remote Video Container */}
-          <div className="relative w-full h-[60vh] md:h-[70vh] bg-black/60 rounded-3xl overflow-hidden shadow-2xl border border-white/5 relative group">
-            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
-            
-            {/* Top Right Controls (Friend & Report & Gift) */}
-            {appState === 'IN_ROOM' && (
-              <div className="absolute top-4 right-4 z-20 flex flex-col space-y-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                <div className="relative">
-                  <button onClick={() => setGiftMenuOpen(!giftMenuOpen)} className="p-3 bg-pink-500/90 hover:bg-pink-500 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Sovg'a yuborish">
-                    <Gift size={24} />
-                  </button>
-                  {giftMenuOpen && (
-                    <div className="absolute right-14 top-0 flex space-x-2 bg-black/60 p-2 rounded-xl backdrop-blur-md">
-                      <button onClick={() => sendGift('🌹')} className="text-3xl hover:scale-125 transition-transform">🌹</button>
-                      <button onClick={() => sendGift('💖')} className="text-3xl hover:scale-125 transition-transform">💖</button>
-                      <button onClick={() => sendGift('🚀')} className="text-3xl hover:scale-125 transition-transform">🚀</button>
-                    </div>
-                  )}
-                </div>
-                <button onClick={handleAddFriend} className="p-3 bg-yellow-500/90 hover:bg-yellow-500 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Do'stlashish">
-                  <Star size={24} />
-                </button>
-                <button onClick={reportPartner} className="p-3 bg-red-600/90 hover:bg-red-600 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Shikoyat qilish">
-                  <ShieldAlert size={24} />
-                </button>
+            ) : (
+              <div className="flex flex-col items-center animate-fade-in">
+                <div className="w-20 h-20 border-4 border-primary border-t-transparent rounded-full animate-spin mb-6"></div>
+                <p className="text-2xl font-light animate-pulse text-white">Suhbatdosh qidirilmoqda...</p>
               </div>
             )}
           </div>
-          <div className="absolute bottom-6 right-6 w-1/4 aspect-video rounded-xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 bg-black">
-            <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover transform scale-x-[-1]" />
-          </div>
+        )}
+
+        {/* Partner Info & Actions - Top Left / Right */}
+        {appState === 'IN_ROOM' && (
+          <>
+            {partnerProfile && (
+              <div className="absolute top-24 left-6 z-20 bg-black/40 backdrop-blur-md px-4 py-2 rounded-2xl flex flex-col gap-1 shadow-lg border border-white/10 pointer-events-none">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-white text-lg">{partnerProfile.name}</span>
+                  <span className="bg-white/20 text-white px-2 py-0.5 rounded-full text-xs">{partnerProfile.age}</span>
+                  <span className="bg-primary/50 text-white px-2 py-0.5 rounded-full text-xs">{partnerProfile.gender}</span>
+                </div>
+                <div className="flex items-center gap-1 text-sm text-white/80">
+                  <MapPin size={14} /> {partnerProfile.country}
+                </div>
+              </div>
+            )}
+            
+            <div className="absolute top-24 right-6 z-20 flex flex-col space-y-3">
+              <div className="relative">
+                <button onClick={() => setGiftMenuOpen(!giftMenuOpen)} className="p-3 bg-pink-500/90 hover:bg-pink-500 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Sovg'a yuborish">
+                  <Gift size={24} />
+                </button>
+                {giftMenuOpen && (
+                  <div className="absolute right-14 top-0 flex space-x-2 bg-black/60 p-2 rounded-xl backdrop-blur-md border border-white/10">
+                    <button onClick={() => sendGift('🌹')} className="text-3xl hover:scale-125 transition-transform">🌹</button>
+                    <button onClick={() => sendGift('💖')} className="text-3xl hover:scale-125 transition-transform">💖</button>
+                    <button onClick={() => sendGift('🚀')} className="text-3xl hover:scale-125 transition-transform">🚀</button>
+                  </div>
+                )}
+              </div>
+              <button onClick={handleAddFriend} className="p-3 bg-yellow-500/90 hover:bg-yellow-500 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Do'stlashish">
+                <Star size={24} />
+              </button>
+              <button onClick={reportPartner} className="p-3 bg-red-600/90 hover:bg-red-600 rounded-2xl text-white shadow-xl backdrop-blur-md transition-transform hover:scale-110" title="Shikoyat qilish">
+                <ShieldAlert size={24} />
+              </button>
+
+              <div className="relative mt-4">
+                <button onClick={() => setShowVoiceMenu(!showVoiceMenu)} className={`p-3 rounded-2xl transition-transform hover:scale-110 shadow-xl backdrop-blur-md ${voiceEffect !== 'normal' ? 'bg-purple-500/90' : 'bg-black/50 border border-white/10'}`} title="Ovoz effektlari">
+                  <Mic2 size={24} className="text-white" />
+                </button>
+                {showVoiceMenu && (
+                  <div className="absolute right-14 top-0 bg-black/80 backdrop-blur-md rounded-2xl p-2 flex flex-col gap-2 shadow-2xl border border-white/10 min-w-[120px]">
+                    <button onClick={() => changeVoiceEffect('normal')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'normal' ? 'bg-white/20 text-white' : 'text-white/70 hover:bg-white/10'}`}>Oddiy</button>
+                    <button onClick={() => changeVoiceEffect('robot')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'robot' ? 'bg-purple-500 text-white' : 'text-white/70 hover:bg-white/10'}`}>🤖 Robot</button>
+                    <button onClick={() => changeVoiceEffect('radio')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'radio' ? 'bg-purple-500 text-white' : 'text-white/70 hover:bg-white/10'}`}>📻 Radio</button>
+                    <button onClick={() => changeVoiceEffect('echo')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'echo' ? 'bg-purple-500 text-white' : 'text-white/70 hover:bg-white/10'}`}>🏔️ G'or</button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Local Video - Picture in Picture Bottom Right */}
+        <div className={`absolute ${appState === 'IN_ROOM' ? 'bottom-28 right-6 md:right-8 w-1/3 max-w-[280px]' : 'bottom-6 right-6 w-1/4 max-w-[200px]'} aspect-video rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-20 bg-black transition-all duration-500`}>
+          <video ref={localVideoRef} autoPlay muted playsInline className="w-full h-full object-cover transform scale-x-[-1]" />
         </div>
 
+        {/* Overlay Chat - Bottom Left */}
         {appState === 'IN_ROOM' && (
-          <div className="w-80 h-full glass rounded-3xl flex flex-col overflow-hidden animate-fade-in shadow-2xl">
-            <div className="p-4 border-b border-white/10 bg-black/20">
-              <h3 className="font-bold flex items-center gap-2"><User size={18}/> Chat</h3>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-              {messages.map((m, i) => (
+          <div className="absolute bottom-28 left-4 md:left-8 w-80 max-h-[40vh] flex flex-col z-20 pointer-events-auto rounded-3xl overflow-hidden shadow-2xl bg-black/40 backdrop-blur-md border border-white/10">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar flex flex-col-reverse">
+              <div ref={chatEndRef} />
+              {[...messages].reverse().map((m, i) => (
                 <div key={i} className={`flex flex-col ${m.sender === 'me' ? 'items-end' : 'items-start'}`}>
-                  <div className={`px-4 py-2 rounded-2xl max-w-[85%] break-words ${m.sender === 'me' ? 'bg-primary text-white rounded-br-none' : 'bg-white/10 text-white rounded-bl-none'}`}>
+                  <div className={`px-3 py-2 rounded-2xl max-w-[90%] break-words text-sm shadow-md ${m.sender === 'me' ? 'bg-primary/90 text-white rounded-br-none' : 'bg-black/60 text-white rounded-bl-none'}`}>
                     {m.text}
                   </div>
                   {m.sender !== 'me' && !m.translated && (
-                    <button onClick={() => translateMessage(i, m.text)} className="text-[10px] text-gray-400 hover:text-white mt-1 flex items-center gap-1 transition">
+                    <button onClick={() => translateMessage(messages.length - 1 - i, m.text)} className="text-[10px] text-white/50 hover:text-white mt-1 flex items-center gap-1 transition">
                       <Globe size={12}/> Tarjima (UZ)
                     </button>
                   )}
                   {m.translated && (
-                    <div className="text-xs text-green-300 mt-1 bg-green-900/30 px-3 py-1 rounded-full border border-green-500/20">
+                    <div className="text-[11px] text-green-300 mt-1 bg-green-900/40 px-2 py-0.5 rounded-full border border-green-500/20">
                       {m.translated}
                     </div>
                   )}
                 </div>
               ))}
-              <div ref={chatEndRef} />
             </div>
-            <form onSubmit={sendMessage} className="p-3 bg-black/30 flex gap-2">
-              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Xabar..." className="flex-1 bg-white/10 border border-white/10 rounded-full px-4 py-2 focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm" />
-              <button type="submit" className="bg-primary hover:bg-accent p-2 rounded-full text-white transition-colors"><Send size={18} /></button>
+            <form onSubmit={sendMessage} className="p-2 bg-black/40 flex gap-2 border-t border-white/10">
+              <input type="text" value={chatInput} onChange={e => setChatInput(e.target.value)} placeholder="Yozish..." className="flex-1 bg-white/10 border-none rounded-full px-4 py-2 focus:outline-none focus:ring-1 focus:ring-primary/50 text-sm text-white placeholder-white/50" />
+              <button type="submit" className="bg-primary hover:bg-primary/80 p-2 rounded-full text-white transition-colors"><Send size={16} /></button>
             </form>
           </div>
         )}
-      </main>
 
-      <footer className="absolute bottom-0 w-full p-6 flex justify-center items-center z-10 bg-gradient-to-t from-black/80 to-transparent">
-        <div className="glass px-6 py-3 rounded-full flex gap-4 items-center shadow-2xl">
-          <button onClick={toggleAudio} className={`p-3 rounded-full ${audioEnabled ? 'bg-white/10' : 'bg-red-500/80'}`}><Mic size={22} /></button>
-          <button onClick={toggleVideo} className={`p-3 rounded-full ${videoEnabled ? 'bg-white/10' : 'bg-red-500/80'}`}><Video size={22} /></button>
-          <div className="w-px h-8 bg-white/20"></div>
-          {appState === 'IN_ROOM' && (
-            <>
-              <button onClick={stopSearch} className="bg-red-500/80 hover:bg-red-500 p-3 rounded-full transition-colors tooltip" title="To'xtatish"><StopCircle size={22} /></button>
-              <button onClick={handleStartClick} className="bg-accent/80 hover:bg-accent p-3 rounded-full transition-colors tooltip" title="Keyingisi"><SkipForward size={22} /></button>
-              <div className="w-px h-8 bg-white/20 mx-2"></div>
-              
-              <div className="relative">
-                <button 
-                  onClick={() => setShowVoiceMenu(!showVoiceMenu)} 
-                  className={`p-3 rounded-full transition-colors tooltip ${voiceEffect !== 'normal' ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/10 hover:bg-white/20'}`} 
-                  title="Ovoz effektlari"
-                >
-                  <Mic2 size={22} />
-                </button>
-                {showVoiceMenu && (
-                  <div className="absolute bottom-14 left-1/2 transform -translate-x-1/2 bg-black/80 backdrop-blur-md rounded-2xl p-2 flex flex-col gap-2 shadow-2xl border border-white/10 min-w-[120px]">
-                    <button onClick={() => changeVoiceEffect('normal')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'normal' ? 'bg-white/20' : 'hover:bg-white/10'}`}>Oddiy</button>
-                    <button onClick={() => changeVoiceEffect('robot')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'robot' ? 'bg-purple-500' : 'hover:bg-white/10'}`}>🤖 Robot</button>
-                    <button onClick={() => changeVoiceEffect('radio')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'radio' ? 'bg-purple-500' : 'hover:bg-white/10'}`}>📻 Radio</button>
-                    <button onClick={() => changeVoiceEffect('echo')} className={`px-4 py-2 rounded-xl text-sm font-medium transition ${voiceEffect === 'echo' ? 'bg-purple-500' : 'hover:bg-white/10'}`}>🏔️ G'or (Echo)</button>
-                  </div>
-                )}
-              </div>
-
-              <button onClick={toggleScreenShare} className={`${isScreenSharing ? 'bg-accent/80' : 'bg-white/10'} hover:bg-white/20 p-3 rounded-full transition-colors tooltip`} title="Ekranni ulashish"><MonitorUp size={22} /></button>
-            </>
-          )}
+        {/* OmeTV style Bottom Controls */}
+        {appState === 'IN_ROOM' && (
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 z-30 flex items-center gap-3 md:gap-6">
+            <button onClick={stopSearch} className="bg-red-600/90 hover:bg-red-600 backdrop-blur-md text-white px-6 md:px-10 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-[0_0_20px_rgba(220,38,38,0.3)] uppercase tracking-wide transition-transform hover:scale-105 flex items-center gap-2 border border-red-500/50">
+              <StopCircle size={24} /> To'xtatish
+            </button>
+            <button onClick={handleStartClick} className="bg-blue-600/90 hover:bg-blue-600 backdrop-blur-md text-white px-6 md:px-10 py-3 md:py-4 rounded-full font-bold text-base md:text-lg shadow-[0_0_20px_rgba(37,99,235,0.3)] uppercase tracking-wide transition-transform hover:scale-105 flex items-center gap-2 border border-blue-500/50">
+              Keyingisi <SkipForward size={24} />
+            </button>
+          </div>
+        )}
+        
+        {/* Top Control Bar (Mic, Video, Screen Share) */}
+        <div className="absolute top-6 left-1/2 transform -translate-x-1/2 z-30 flex gap-3 bg-black/30 backdrop-blur-md px-4 py-2 rounded-full border border-white/10">
+          <button onClick={toggleAudio} className={`p-2 rounded-full transition-colors ${audioEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500/80 text-white'}`} title="Mikrofon"><Mic size={18} /></button>
+          <button onClick={toggleVideo} className={`p-2 rounded-full transition-colors ${videoEnabled ? 'bg-white/10 hover:bg-white/20 text-white' : 'bg-red-500/80 text-white'}`} title="Kamera"><Video size={18} /></button>
+          <div className="w-px h-6 bg-white/20 my-auto"></div>
+          <button onClick={toggleScreenShare} className={`p-2 rounded-full transition-colors ${isScreenSharing ? 'bg-accent/80 text-white' : 'bg-white/10 hover:bg-white/20 text-white'}`} title="Ekranni ulashish"><MonitorUp size={18} /></button>
         </div>
-      </footer>
+      </main>
 
       {/* Private Chat Floating Window */}
       {activePrivateChat && (
