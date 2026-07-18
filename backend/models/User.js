@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
   friends: { type: Array, default: [] },
   reportCount: { type: Number, default: 0 },
+  isVerified: { type: Boolean, default: false },
+  verificationCode: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
