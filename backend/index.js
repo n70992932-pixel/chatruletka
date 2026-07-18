@@ -191,7 +191,7 @@ app.post('/api/auth/register', async (req, res) => {
     let user = await findUserByEmail(sanitizedEmail);
     if (user) return res.status(400).json({ error: "Bu email band qilingan." });
 
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const hashedPassword = await bcrypt.hash(password, 10);
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     user = await saveNewUser({
@@ -206,17 +206,14 @@ app.post('/api/auth/register', async (req, res) => {
       verificationCode
     });
 
-    try {
-      await transporter.sendMail({
-        from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
-        to: sanitizedEmail,
-        subject: 'Chatruletka - Elektron pochtani tasdiqlash',
-        text: `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
-      });
-    } catch (mailErr) {
+    transporter.sendMail({
+      from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
+      to: sanitizedEmail,
+      subject: 'Chatruletka - Elektron pochtani tasdiqlash',
+      text: `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+    }).catch(mailErr => {
       console.error("Xat yuborishda xatolik:", mailErr);
-      // Agar xat yuborishda muammo bo'lsa, xatolik qaytaramiz (lekin foydalanuvchi bazada isVerified=false bo'lib qoladi)
-    }
+    });
 
     res.json({ requiresVerification: true, email: sanitizedEmail });
   } catch (err) {
@@ -247,16 +244,14 @@ app.post('/api/auth/login', async (req, res) => {
       user.verificationCode = verificationCode;
       await updateUser(user);
 
-      try {
-        await transporter.sendMail({
-          from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
-          to: sanitizedEmail,
-          subject: 'Chatruletka - Elektron pochtani tasdiqlash (Qayta yuborildi)',
-          text: `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
-        });
-      } catch (mailErr) {
+      transporter.sendMail({
+        from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
+        to: sanitizedEmail,
+        subject: 'Chatruletka - Elektron pochtani tasdiqlash (Qayta yuborildi)',
+        text: `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+      }).catch(mailErr => {
         console.error("Qayta xat yuborishda xatolik:", mailErr);
-      }
+      });
 
       return res.json({ requiresVerification: true, email: sanitizedEmail });
     }
