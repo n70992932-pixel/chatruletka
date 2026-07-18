@@ -411,45 +411,67 @@ io.on('connection', (socket) => {
   });
 
   socket.on('report', async (partnerDbId) => {
+    // XAVFSIZLIK: faqat joriy room'dagi suhbatdoshni report qilish mumkin
+    const currentRoom = Array.from(socket.rooms).find(r => r.startsWith('room-'));
+    if (!currentRoom) return; // Agar room'da bo'lmasa — ignore
+
+    // Room'dagi boshqa foydalanuvchilarni topamiz
+    const usersInRoom = Array.from(io.sockets.adapter.rooms.get(currentRoom) || []);
+    const partnerSocket = usersInRoom
+      .filter(sid => sid !== socket.id)
+      .map(sid => io.sockets.sockets.get(sid))
+      .find(s => s);
+
+    // Agar partnerDbId room'dagi haqiqiy suhbatdoshga to'g'ri kelmasa — ignore
+    if (!partnerSocket) return;
+    const realPartnerId = String(partnerSocket.user?._id || partnerSocket.user?.id || '');
+    if (String(partnerDbId) !== realPartnerId) return; // Soxta ID — bloklash
+
     if (partnerDbId) {
       const partner = await findUserById(partnerDbId);
       if (partner) {
-        partner.reportCount += 1;
+        partner.reportCount = (partner.reportCount || 0) + 1;
         if (partner.reportCount >= 3) {
           partner.isBanned = true;
-          io.emit('user-banned', partnerDbId); 
+          io.emit('user-banned', partnerDbId);
         }
         await updateUser(partner);
       }
     }
+    // Reporter'ni roomdan chiqaramiz
     waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-    const rooms = Array.from(socket.rooms);
-    rooms.forEach(room => {
-      if (room !== socket.id) {
-        socket.to(room).emit('partner-disconnected');
-        socket.leave(room);
-      }
-    });
+    socket.to(currentRoom).emit('partner-disconnected');
+    socket.leave(currentRoom);
   });
 
   socket.on('auto-ban', async (partnerDbId) => {
+    // XAVFSIZLIK: faqat joriy room'dagi suhbatdoshni auto-ban qilish mumkin
+    const currentRoom = Array.from(socket.rooms).find(r => r.startsWith('room-'));
+    if (!currentRoom) return; // Room'siz bo'lsa — ignore
+
+    const usersInRoom = Array.from(io.sockets.adapter.rooms.get(currentRoom) || []);
+    const partnerSocket = usersInRoom
+      .filter(sid => sid !== socket.id)
+      .map(sid => io.sockets.sockets.get(sid))
+      .find(s => s);
+
+    if (!partnerSocket) return;
+    const realPartnerId = String(partnerSocket.user?._id || partnerSocket.user?.id || '');
+    if (String(partnerDbId) !== realPartnerId) return; // Soxta ID — bloklash
+
     if (partnerDbId) {
       const partner = await findUserById(partnerDbId);
       if (partner) {
         partner.isBanned = true;
-        partner.reportCount += 10; // AI dushmani
+        partner.reportCount = (partner.reportCount || 0) + 10;
         await updateUser(partner);
-        io.emit('user-banned', partnerDbId); 
+        io.emit('user-banned', partnerDbId);
       }
     }
+    // Reporter'ni roomdan chiqaramiz
     waitingUsers = waitingUsers.filter(user => user.id !== socket.id);
-    const rooms = Array.from(socket.rooms);
-    rooms.forEach(room => {
-      if (room !== socket.id) {
-        socket.to(room).emit('partner-disconnected');
-        socket.leave(room);
-      }
-    });
+    socket.to(currentRoom).emit('partner-disconnected');
+    socket.leave(currentRoom);
   });
 
   socket.on('private-message', (data) => {
