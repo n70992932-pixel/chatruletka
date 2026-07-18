@@ -10,6 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const validator = require('validator');
+const nodemailer = require('nodemailer');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
 const dbService = require('./db');
 const User = require('./models/User');
@@ -25,6 +26,15 @@ const app = express();
 
 // 1. Helmet — HTTP xavfsizlik headerlari
 app.use(helmet());
+
+// Email yuborish sozlamalari (Nodemailer)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER,
+    pass: process.env.GMAIL_PASS
+  }
+});
 
 // 2. CORS — faqat ruxsat berilgan manzillardan
 app.use(cors({
@@ -181,6 +191,8 @@ app.post('/api/auth/register', async (req, res) => {
     if (user) return res.status(400).json({ error: "Bu email band qilingan." });
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     user = await saveNewUser({
       email: sanitizedEmail,
       password: hashedPassword,
@@ -188,11 +200,24 @@ app.post('/api/auth/register', async (req, res) => {
       age: ageNum,
       gender,
       country: country.trim(),
-      deviceId
+      deviceId,
+      isVerified: false,
+      verificationCode
     });
 
-    const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
+    try {
+      await transporter.sendMail({
+        from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
+        to: sanitizedEmail,
+        subject: 'Chatruletka - Elektron pochtani tasdiqlash',
+        text: `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+      });
+    } catch (mailErr) {
+      console.error("Xat yuborishda xatolik:", mailErr);
+      // Agar xat yuborishda muammo bo'lsa, xatolik qaytaramiz (lekin foydalanuvchi bazada isVerified=false bo'lib qoladi)
+    }
+
+    res.json({ requiresVerification: true, email: sanitizedEmail });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server xatosi" });
@@ -215,6 +240,37 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ error: "Email yoki parol xato." });
 
     if (user.isBanned) return res.status(403).json({ error: "Sizning akkauntingiz bloklangan!" });
+
+    if (!user.isVerified) {
+      return res.json({ requiresVerification: true, email: sanitizedEmail });
+    }
+
+    const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender: user.gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server xatosi" });
+  }
+});
+
+app.post('/api/auth/verify', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: "Barcha maydonlarni to'ldiring." });
+
+    const sanitizedEmail = validator.normalizeEmail(email);
+    const user = await findUserByEmail(sanitizedEmail);
+    if (!user) return res.status(404).json({ error: "Foydalanuvchi topilmadi." });
+
+    if (user.isVerified) return res.status(400).json({ error: "Akkaunt allaqachon tasdiqlangan." });
+
+    if (user.verificationCode !== code.trim()) {
+      return res.status(400).json({ error: "Tasdiqlash kodi noto'g'ri." });
+    }
+
+    // Kod to'g'ri, tasdiqlaymiz
+    const updates = { isVerified: true, verificationCode: null };
+    await updateUser({ ...user, ...updates });
 
     const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender: user.gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });

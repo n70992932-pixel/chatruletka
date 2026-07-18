@@ -27,6 +27,10 @@ function App() {
   const [password, setPassword] = useState('');
   const [profile, setProfile] = useState({ name: '', age: '', gender: 'Erkak', country: "O'zbekiston" });
   
+  // Verification states
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  
   const [partnerProfile, setPartnerProfile] = useState(null);
   const [partnerDbId, setPartnerDbId] = useState(null);
 
@@ -216,17 +220,39 @@ function App() {
       if (authMode === 'register') {
         if (profile.age < 18) return setError("Faqat 18 yoshdan kattalar!");
         const res = await axios.post(`${API_URL}/auth/register`, { email, password, deviceId, ...profile });
+        if (res.data.requiresVerification) {
+          setIsVerifying(true);
+          return;
+        }
         localStorage.setItem('chatruletka_token', res.data.token);
         setUserProfile(res.data.user);
         setToken(res.data.token);
       } else {
         const res = await axios.post(`${API_URL}/auth/login`, { email, password });
+        if (res.data.requiresVerification) {
+          setIsVerifying(true);
+          return;
+        }
         localStorage.setItem('chatruletka_token', res.data.token);
         setUserProfile(res.data.user);
         setToken(res.data.token);
       }
     } catch (err) {
       setError(err.response?.data?.error || "Xatolik yuz berdi");
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setError('');
+    try {
+      const res = await axios.post(`${API_URL}/auth/verify`, { email, code: verificationCode });
+      localStorage.setItem('chatruletka_token', res.data.token);
+      setUserProfile(res.data.user);
+      setToken(res.data.token);
+      setIsVerifying(false);
+    } catch (err) {
+      setError(err.response?.data?.error || "Tasdiqlashda xatolik yuz berdi");
     }
   };
 
@@ -519,59 +545,90 @@ function App() {
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-accent"></div>
           <h1 className="text-3xl font-extrabold text-center mb-2 bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">ChatRuletka Pro</h1>
           
-          <div className="flex border-b border-white/10 mt-6 mb-6">
-            <button className={`flex-1 py-3 font-medium transition-colors border-b-2 ${authMode === 'login' ? 'border-primary text-white' : 'border-transparent text-white/50'}`} onClick={() => setAuthMode('login')}>
-              <LogIn size={18} className="inline mr-2" /> Kirish
-            </button>
-            <button className={`flex-1 py-3 font-medium transition-colors border-b-2 ${authMode === 'register' ? 'border-primary text-white' : 'border-transparent text-white/50'}`} onClick={() => setAuthMode('register')}>
-              <UserPlus size={18} className="inline mr-2" /> Ro'yxatdan o'tish
-            </button>
-          </div>
-          
-          <form onSubmit={handleAuthSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-white/80 mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50" />
-            </div>
-            <div>
-              <label className="block text-sm text-white/80 mb-1">Parol</label>
-              <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50" />
-            </div>
-
-            {authMode === 'register' && (
-              <>
+          {isVerifying ? (
+            <form onSubmit={handleVerify} className="space-y-4 mt-6">
+              <div className="text-center mb-6">
+                <Shield className="w-16 h-16 text-primary mx-auto mb-2 opacity-80" />
+                <p className="text-white/80">
+                  Biz <b>{email}</b> manziliga tasdiqlash kodini yubordik. Iltimos, pochtangizni tekshiring.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-white/80 mb-1">Tasdiqlash kodi</label>
+                <input 
+                  type="text" 
+                  value={verificationCode} 
+                  onChange={e => setVerificationCode(e.target.value)} 
+                  required 
+                  placeholder="6 xonali kod"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-center text-xl tracking-widest focus:ring-2 focus:ring-primary/50" 
+                />
+              </div>
+              {error && <p className="text-red-400 text-sm font-medium text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
+              <button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white font-bold py-4 rounded-xl shadow-lg mt-4 flex items-center justify-center gap-2">
+                <CheckCircle size={20} /> Tasdiqlash
+              </button>
+              <button type="button" onClick={() => setIsVerifying(false)} className="w-full mt-2 text-white/50 text-sm hover:text-white transition-colors">
+                Orqaga qaytish
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="flex border-b border-white/10 mt-6 mb-6">
+                <button className={`flex-1 py-3 font-medium transition-colors border-b-2 ${authMode === 'login' ? 'border-primary text-white' : 'border-transparent text-white/50'}`} onClick={() => setAuthMode('login')}>
+                  <LogIn size={18} className="inline mr-2" /> Kirish
+                </button>
+                <button className={`flex-1 py-3 font-medium transition-colors border-b-2 ${authMode === 'register' ? 'border-primary text-white' : 'border-transparent text-white/50'}`} onClick={() => setAuthMode('register')}>
+                  <UserPlus size={18} className="inline mr-2" /> Ro'yxatdan o'tish
+                </button>
+              </div>
+              
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm text-white/80 mb-1">Ism</label>
-                  <input type="text" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-white/80 mb-1">Yosh</label>
-                    <input type="number" value={profile.age} onChange={e => setProfile({...profile, age: e.target.value})} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-white/80 mb-1">Jins</label>
-                    <select value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3">
-                      <option value="Erkak">Erkak</option>
-                      <option value="Ayol">Ayol</option>
-                    </select>
-                  </div>
+                  <label className="block text-sm text-white/80 mb-1">Email</label>
+                  <input type="email" value={email} onChange={e => setEmail(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50" />
                 </div>
                 <div>
-                  <label className="block text-sm text-white/80 mb-1">Davlat</label>
-                  <select value={profile.country} onChange={e => setProfile({...profile, country: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3">
-                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <label className="block text-sm text-white/80 mb-1">Parol</label>
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:ring-2 focus:ring-primary/50" />
                 </div>
-              </>
-            )}
 
-            {error && <p className="text-red-400 text-sm font-medium text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
+                {authMode === 'register' && (
+                  <>
+                    <div>
+                      <label className="block text-sm text-white/80 mb-1">Ism</label>
+                      <input type="text" value={profile.name} onChange={e => setProfile({...profile, name: e.target.value})} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-white/80 mb-1">Yosh</label>
+                        <input type="number" value={profile.age} onChange={e => setProfile({...profile, age: e.target.value})} required className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3" />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-white/80 mb-1">Jins</label>
+                        <select value={profile.gender} onChange={e => setProfile({...profile, gender: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3">
+                          <option value="Erkak">Erkak</option>
+                          <option value="Ayol">Ayol</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-white/80 mb-1">Davlat</label>
+                      <select value={profile.country} onChange={e => setProfile({...profile, country: e.target.value})} className="w-full bg-slate-800 border border-white/10 rounded-xl px-4 py-3">
+                        {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                  </>
+                )}
 
-            <button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white font-bold py-4 rounded-xl shadow-lg mt-4 flex items-center justify-center gap-2">
-              {authMode === 'login' ? <LogIn size={20} /> : <UserPlus size={20} />} {authMode === 'login' ? 'Kirish' : "Ro'yxatdan o'tish"}
-            </button>
-          </form>
+                {error && <p className="text-red-400 text-sm font-medium text-center bg-red-400/10 py-2 rounded-lg">{error}</p>}
+
+                <button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 text-white font-bold py-4 rounded-xl shadow-lg mt-4 flex items-center justify-center gap-2">
+                  {authMode === 'login' ? <LogIn size={20} /> : <UserPlus size={20} />} {authMode === 'login' ? 'Kirish' : "Ro'yxatdan o'tish"}
+                </button>
+              </form>
+            </>
+          )}
         </div>
       </div>
     );
