@@ -225,14 +225,47 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // TURN Server API
-app.get('/api/turn', (req, res) => {
+app.get('/api/turn', async (req, res) => {
+  const TURN_API_KEY = process.env.TURN_API_KEY;
+
+  // Agar Metered.ca API key bo'lsa — dinamik TURN kredensiallarini olamiz
+  if (TURN_API_KEY && TURN_API_KEY !== 'your_metered_turn_key_here') {
+    try {
+      const response = await fetch(
+        `https://chatruletka.metered.live/api/v1/turn/credentials?apiKey=${TURN_API_KEY}`
+      );
+      const iceServers = await response.json();
+      return res.json({ iceServers });
+    } catch (err) {
+      console.warn('Metered.ca TURN xatosi, fallback ishlatiladi:', err.message);
+    }
+  }
+
+  // Fallback: Bepul ochiq STUN + TURN serverlar (Open Relay Project)
   res.json({
     iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:global.stun.twilio.com:3478' }
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'stun:stun2.l.google.com:19302' },
+      {
+        urls: 'turn:openrelay.metered.ca:80',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      },
+      {
+        urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
     ]
   });
 });
+
 
 // P2P To'lov So'rovini qabul qilish
 app.post('/api/payment/request', async (req, res) => {
