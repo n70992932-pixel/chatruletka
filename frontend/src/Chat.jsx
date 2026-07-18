@@ -7,8 +7,8 @@ import * as nsfwjs from 'nsfwjs';
 import { Video, VideoOff, Mic, MicOff, SkipForward, Play, ShieldAlert, User, MapPin, StopCircle, Users, Send, AlertTriangle, LogIn, UserPlus, Star, CheckCircle, Shield, Globe, X, MessageSquare, MonitorUp, Gift, Sun, Moon, Mic2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-const SOCKET_SERVER = 'https://chatruletka-5ula.onrender.com';
-const API_URL = 'https://chatruletka-5ula.onrender.com/api';
+const SOCKET_SERVER = 'https://chatruletka-sula.onrender.com';
+const API_URL = 'https://chatruletka-sula.onrender.com/api';
 const COUNTRIES = [
   "O'zbekiston", "Qozog'iston", "Qirg'iziston", "Tojikiston", 
   "Rossiya", "Turkiya", "AQSh", "Janubiy Koreya", "Boshqa"
