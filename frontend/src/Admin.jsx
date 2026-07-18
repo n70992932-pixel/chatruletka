@@ -7,6 +7,8 @@ const API_URL = 'https://chatruletka-sula.onrender.com/api';
 
 function Admin() {
   const [users, setUsers] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [activeTab, setActiveTab] = useState('users');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -27,17 +29,61 @@ function Admin() {
     }
   };
 
+  const fetchPayments = async () => {
+    try {
+      const token = localStorage.getItem('chatruletka_token');
+      const res = await axios.get(`${API_URL}/admin/payments`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPayments(res.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchUsers();
+    fetchPayments();
   }, []);
 
   const toggleBan = async (userId, currentBanStatus) => {
     try {
       const token = localStorage.getItem('chatruletka_token');
-      await axios.post(`${API_URL}/admin/ban`, { userId, isBanned: !currentBanStatus }, {
+      if (currentBanStatus) {
+        await axios.post(`${API_URL}/admin/unban`, { userId }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      } else {
+        await axios.post(`${API_URL}/admin/ban`, { userId, isBanned: true }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+      fetchUsers();
+    } catch (err) {
+      alert("Xatolik yuz berdi");
+    }
+  };
+
+  const approvePayment = async (requestId) => {
+    try {
+      const token = localStorage.getItem('chatruletka_token');
+      await axios.post(`${API_URL}/admin/payments/approve`, { requestId }, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      fetchPayments();
       fetchUsers();
+    } catch (err) {
+      alert("Xatolik yuz berdi");
+    }
+  };
+
+  const rejectPayment = async (requestId) => {
+    try {
+      const token = localStorage.getItem('chatruletka_token');
+      await axios.post(`${API_URL}/admin/payments/reject`, { requestId }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchPayments();
     } catch (err) {
       alert("Xatolik yuz berdi");
     }
@@ -70,6 +116,25 @@ function Admin() {
           </div>
         </div>
 
+        <div className="flex gap-4 mb-6">
+          <button 
+            onClick={() => setActiveTab('users')} 
+            className={`px-6 py-3 rounded-xl font-bold transition-all ${activeTab === 'users' ? 'bg-primary text-white shadow-[0_0_15px_rgba(37,99,235,0.5)]' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+            Foydalanuvchilar
+          </button>
+          <button 
+            onClick={() => setActiveTab('payments')} 
+            className={`px-6 py-3 rounded-xl font-bold transition-all flex items-center gap-2 ${activeTab === 'payments' ? 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'bg-white/5 text-white/50 hover:bg-white/10'}`}>
+            To'lovlar
+            {payments.filter(p => p.status === 'pending').length > 0 && (
+              <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                {payments.filter(p => p.status === 'pending').length}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {activeTab === 'users' ? (
         <div className="bg-white/5 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
           <table className="w-full text-left border-collapse">
             <thead className="bg-black/40">
@@ -101,9 +166,8 @@ function Admin() {
                     {!u.isAdmin && (
                       <button 
                         onClick={() => toggleBan(u._id || u.id, u.isBanned)} 
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all transform hover:scale-105 ${u.isBanned ? 'bg-green-500/20 text-green-400 hover:bg-green-500 hover:text-white' : 'bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white'}`}
-                      >
-                        {u.isBanned ? <><Unlock size={16}/> OCHISH</> : <><Ban size={16}/> BLOKLASH</>}
+                        className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-end gap-2 ml-auto transition-all ${u.isBanned ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500/30'}`}>
+                        {u.isBanned ? <><Unlock size={16}/> BAN'dan Yechish</> : <><Ban size={16}/> Bloklash</>}
                       </button>
                     )}
                   </td>
@@ -112,6 +176,46 @@ function Admin() {
             </tbody>
           </table>
         </div>
+        ) : (
+          <div className="bg-white/5 rounded-3xl overflow-hidden border border-white/10 shadow-2xl">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-black/40">
+                <tr>
+                  <th className="p-5 font-semibold text-white/50 text-sm uppercase tracking-wider">Sana</th>
+                  <th className="p-5 font-semibold text-white/50 text-sm uppercase tracking-wider">Foydalanuvchi</th>
+                  <th className="p-5 font-semibold text-white/50 text-sm uppercase tracking-wider">Chek / Ism</th>
+                  <th className="p-5 font-semibold text-white/50 text-sm uppercase tracking-wider">Status</th>
+                  <th className="p-5 font-semibold text-white/50 text-sm uppercase tracking-wider text-right">Harakat</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/5">
+                {payments.length === 0 && (
+                  <tr><td colSpan="5" className="p-8 text-center text-white/50">Hozircha to'lov so'rovlari yo'q</td></tr>
+                )}
+                {[...payments].reverse().map((p, i) => (
+                  <tr key={i} className="hover:bg-white/5 transition-colors">
+                    <td className="p-5 text-white/60">{new Date(p.date).toLocaleString()}</td>
+                    <td className="p-5 font-bold">{p.username}</td>
+                    <td className="p-5 font-mono text-yellow-400">{p.receiptInfo}</td>
+                    <td className="p-5">
+                      {p.status === 'pending' && <span className="text-orange-400 bg-orange-400/20 px-3 py-1 rounded text-sm">Kutilmoqda</span>}
+                      {p.status === 'approved' && <span className="text-green-400 bg-green-400/20 px-3 py-1 rounded text-sm">Tasdiqlangan</span>}
+                      {p.status === 'rejected' && <span className="text-red-400 bg-red-400/20 px-3 py-1 rounded text-sm">Rad etilgan</span>}
+                    </td>
+                    <td className="p-5 text-right">
+                      {p.status === 'pending' && (
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => approvePayment(p.id)} className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-[0_0_10px_rgba(34,197,94,0.3)]">Tasdiqlash (Premium yoqish)</button>
+                          <button onClick={() => rejectPayment(p.id)} className="bg-white/10 hover:bg-white/20 text-white/70 px-4 py-2 rounded-lg text-sm transition-all">Rad etish</button>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

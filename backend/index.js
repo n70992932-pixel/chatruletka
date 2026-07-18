@@ -39,6 +39,20 @@ const saveMockDB = () => {
   fs.writeFileSync(MOCK_DB_FILE, JSON.stringify(mockUsers, null, 2));
 };
 
+const MOCK_PAYMENTS_FILE = './mockPayments.json';
+let mockPayments = [];
+if (fs.existsSync(MOCK_PAYMENTS_FILE)) {
+  try {
+    mockPayments = JSON.parse(fs.readFileSync(MOCK_PAYMENTS_FILE, 'utf8'));
+  } catch(e) {
+    console.error("To'lov faylidan o'qishda xatolik", e);
+  }
+}
+
+const saveMockPayments = () => {
+  fs.writeFileSync(MOCK_PAYMENTS_FILE, JSON.stringify(mockPayments, null, 2));
+};
+
 let connectedUsers = new Map();
 
 const findUserByEmail = async (email) => {
@@ -143,50 +157,27 @@ app.get('/api/turn', (req, res) => {
   });
 });
 
-// Stripe Payment API
-app.post('/api/payment/test-checkout', async (req, res) => {
+// P2P To'lov So'rovini qabul qilish
+app.post('/api/payment/request', async (req, res) => {
   try {
-    const { userId } = req.body;
+    const { userId, username, receiptInfo } = req.body;
     const user = await findUserById(userId);
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "Foydalanuvchi topilmadi" });
 
-    if (process.env.STRIPE_SECRET_KEY) {
-      // Real Stripe Checkout Sessiyasi
-      const session = await stripe.checkout.sessions.create({
-        payment_method_types: ['card'],
-        line_items: [{
-          price_data: { currency: 'usd', product_data: { name: 'Premium Obuna (VIP)' }, unit_amount: 499 },
-          quantity: 1,
-        }],
-        mode: 'payment',
-        success_url: `http://localhost:5175/?success=true&user_id=${userId}`,
-        cancel_url: `http://localhost:5175/`,
-      });
-      return res.json({ success: true, url: session.url });
-    } else {
-      // Test mode (To'lovsiz)
-      user.isPremium = true;
-      await updateUser(user);
-      res.json({ success: true, isPremium: true });
-    }
+    const newRequest = {
+      id: Date.now().toString(),
+      userId,
+      username,
+      receiptInfo,
+      status: 'pending',
+      date: new Date().toISOString()
+    };
+    mockPayments.push(newRequest);
+    saveMockPayments();
+    
+    res.json({ success: true });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "Payment failed" });
-  }
-});
-
-// To'lov muvaffaqiyatli bo'lsa chaqiriladi (Real rejim uchun webhook yoki frontend orqali)
-app.post('/api/payment/confirm', async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const user = await findUserById(userId);
-    if (user) {
-      user.isPremium = true;
-      await updateUser(user);
-      return res.json({ success: true });
-    }
-    res.status(404).json({ error: "Topilmadi" });
-  } catch (err) {
     res.status(500).json({ error: "Server xatosi" });
   }
 });
@@ -236,6 +227,72 @@ app.post('/api/admin/ban', requireAdmin, async (req, res) => {
     res.json({ success: true, user });
   } catch (err) {
     res.status(500).json({ error: "Admin API xatosi" });
+  }
+});
+
+app.post('/api/admin/unban', requireAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const user = await findUserById(userId);
+    if (user) {
+      user.isBanned = false;
+      user.banExpiresAt = null;
+      await updateUser(user);
+      return res.json({ success: true });
+    }
+    res.status(404).json({ error: "Topilmadi" });
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik" });
+  }
+});
+
+// Admin to'lovlarni olishi
+app.get('/api/admin/payments', requireAdmin, async (req, res) => {
+  try {
+    res.json(mockPayments);
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik" });
+  }
+});
+
+// Admin to'lovni tasdiqlashi
+app.post('/api/admin/payments/approve', requireAdmin, async (req, res) => {
+  try {
+    const { requestId } = req.body;
+    const payment = mockPayments.find(p => p.id === requestId);
+    if (!payment) return res.status(404).json({ error: "Topilmadi" });
+
+    const user = await findUserById(payment.userId);
+    if (user) {
+      user.isPremium = true;
+      await updateUser(user);
+      payment.status = 'approved';
+      saveMockPayments();
+      // Inform user via socket if they are connected
+      const socketId = Array.from(connectedUsers.entries()).find(([_, u]) => u.userId === user.id || u.userId === user._id)?.[0];
+      if (socketId) {
+        io.to(socketId).emit('premium-activated');
+      }
+      return res.json({ success: true });
+    }
+    res.status(404).json({ error: "User topilmadi" });
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik" });
+  }
+});
+
+// Admin to'lovni rad etishi
+app.post('/api/admin/payments/reject', requireAdmin, async (req, res) => {
+  try {
+    const { requestId } = req.body;
+    const payment = mockPayments.find(p => p.id === requestId);
+    if (!payment) return res.status(404).json({ error: "Topilmadi" });
+
+    payment.status = 'rejected';
+    saveMockPayments();
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: "Xatolik" });
   }
 });
 

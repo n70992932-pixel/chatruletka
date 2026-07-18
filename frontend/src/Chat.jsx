@@ -62,6 +62,8 @@ function App() {
   const [targetGender, setTargetGender] = useState('Barchasi');
   const [showPremiumModal, setShowPremiumModal] = useState(false);
   const [paymentLoading, setPaymentLoading] = useState(false);
+  const [paymentReceipt, setPaymentReceipt] = useState("");
+  const [paymentRequested, setPaymentRequested] = useState(false);
   
   const [nsfwModel, setNsfwModel] = useState(null);
   const [friends, setFriends] = useState([]);
@@ -169,6 +171,10 @@ function App() {
       setOnlineUsersCount(count);
     });
     newSocket.on('banned', () => setIsBanned(true));
+    newSocket.on('premium-activated', () => {
+      setUserProfile(prev => ({ ...prev, isPremium: true }));
+      alert("Tabriklaymiz! Sizning Premium obunangiz admin tomonidan tasdiqlandi!");
+    });
 
     newSocket.on('matched', (data) => {
       setAppState('IN_ROOM');
@@ -480,6 +486,25 @@ function App() {
     }
   };
 
+  const submitPaymentRequest = async () => {
+    if(!paymentReceipt.trim()) return alert("Iltimos, ismingiz yoki chek raqamini kiriting.");
+    setPaymentLoading(true);
+    try {
+      const res = await axios.post(`${API_URL}/payment/request`, { 
+        userId: userProfile.id,
+        username: userProfile.name,
+        receiptInfo: paymentReceipt
+      });
+      if (res.data.success) {
+        setPaymentRequested(true);
+      }
+    } catch (err) {
+      alert("Xatolik yuz berdi");
+    } finally {
+      setPaymentLoading(false);
+    }
+  };
+
   const payForPremium = async () => {
     setPaymentLoading(true);
     try {
@@ -595,23 +620,44 @@ function App() {
       {showPremiumModal && (
         <div className="absolute inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="glass p-8 rounded-3xl w-full max-w-sm text-center relative border border-accent/30 shadow-2xl shadow-accent/20">
-            <button onClick={() => setShowPremiumModal(false)} className="absolute top-4 right-4 text-white/50 hover:text-white">X</button>
+            <button onClick={() => {setShowPremiumModal(false); setPaymentRequested(false);}} className="absolute top-4 right-4 text-white/50 hover:text-white">X</button>
             <Star size={60} className="text-yellow-400 mx-auto mb-4 drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
             <h2 className="text-3xl font-bold mb-2">Premium Filtr</h2>
-            <p className="text-white/70 mb-6">Faqat qizlar yoki yigitlar bilan suhbatlashish uchun Premium obuna xarid qiling.</p>
             
-            <div className="bg-black/30 rounded-xl p-4 mb-6 text-left">
-              <ul className="space-y-3">
-                <li className="flex items-center gap-2 text-sm"><CheckCircle size={16} className="text-green-400"/> Faqat xohlagan jinsni tanlash</li>
-                <li className="flex items-center gap-2 text-sm"><CheckCircle size={16} className="text-green-400"/> To'liq anonimlik (Maxfiy ism)</li>
-                <li className="flex items-center gap-2 text-sm"><CheckCircle size={16} className="text-green-400"/> VIP Status va Reklamasiz</li>
-              </ul>
-            </div>
-
-            <button onClick={payForPremium} disabled={paymentLoading} className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold py-4 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.4)] transition-all">
-              {paymentLoading ? "Iltimos kuting..." : "$4.99 - Hozir Sotib Olish"}
-            </button>
-            <p className="text-xs text-white/40 mt-4">*Bu TEST rejim. Haqiqiy pul yechilmaydi.</p>
+            {paymentRequested ? (
+              <div className="mt-4">
+                <CheckCircle size={50} className="text-green-500 mx-auto mb-4" />
+                <p className="text-lg font-bold">So'rov yuborildi!</p>
+                <p className="text-white/70 mt-2">Admin to'lovni tekshirib, tez orada Premium yoqib beradi.</p>
+                <button onClick={() => setShowPremiumModal(false)} className="mt-6 bg-gray-700 w-full py-3 rounded-xl font-bold hover:bg-gray-600 transition-all">Yopish</button>
+              </div>
+            ) : (
+              <>
+                <p className="text-white/70 mb-4 text-sm">Faqat xohlagan jinsni tanlash uchun Premium oling.</p>
+                <div className="bg-black/50 p-4 rounded-xl mb-4 border border-white/10 text-left">
+                  <p className="text-sm text-white/60 mb-1">To'lov summasi:</p>
+                  <p className="font-bold text-xl mb-3 text-yellow-400">10,000 so'm</p>
+                  
+                  <p className="text-sm text-white/60 mb-1">Karta raqami (Click/Payme):</p>
+                  <div className="flex justify-between items-center bg-black/50 p-2 rounded-lg mb-1 border border-white/10">
+                    <p className="font-mono font-bold tracking-widest text-white text-lg">9860100126647724</p>
+                    <button onClick={() => {navigator.clipboard.writeText("9860100126647724"); alert("Karta nusxalandi!")}} className="text-xs bg-gray-700 px-3 py-1 rounded-lg hover:bg-gray-600 transition-all font-bold">Nusxa</button>
+                  </div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide">NOMONJON ORMONOV</p>
+                </div>
+                
+                <input 
+                  type="text" 
+                  placeholder="To'ladim! (Ismingiz yoki chek raqami)" 
+                  value={paymentReceipt}
+                  onChange={(e) => setPaymentReceipt(e.target.value)}
+                  className="w-full bg-black/30 border border-white/20 p-3 rounded-xl text-white outline-none focus:border-yellow-400 mb-4 placeholder:text-white/30"
+                />
+                <button onClick={submitPaymentRequest} disabled={paymentLoading} className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-black font-bold py-3 rounded-xl shadow-[0_0_20px_rgba(250,204,21,0.4)] transition-all">
+                  {paymentLoading ? "Yuborilmoqda..." : "To'lovni Tasdiqlash"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
