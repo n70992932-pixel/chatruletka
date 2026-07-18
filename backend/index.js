@@ -20,7 +20,7 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] }
 });
 
-const JWT_SECRET = 'chatruletka_super_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 dbService.connect();
 
