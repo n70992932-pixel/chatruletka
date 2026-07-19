@@ -222,6 +222,7 @@ function App() {
         const res = await axios.post(`${API_URL}/auth/register`, { email, password, deviceId, ...profile });
         if (res.data.requiresVerification) {
           setIsVerifying(true);
+          setVerificationCode(res.data.verificationCode || ''); // Auto-fill code
           return;
         }
         localStorage.setItem('chatruletka_token', res.data.token);
@@ -231,6 +232,7 @@ function App() {
         const res = await axios.post(`${API_URL}/auth/login`, { email, password });
         if (res.data.requiresVerification) {
           setIsVerifying(true);
+          setVerificationCode(res.data.verificationCode || ''); // Auto-fill code
           return;
         }
         localStorage.setItem('chatruletka_token', res.data.token);
@@ -550,11 +552,15 @@ function App() {
               <div className="text-center mb-6">
                 <Shield className="w-16 h-16 text-primary mx-auto mb-2 opacity-80" />
                 <p className="text-white/80">
-                  Biz <b>{email}</b> manziliga tasdiqlash kodini yubordik. Iltimos, pochtangizni tekshiring.
+                  Biz <b>{email}</b> manzili uchun tasdiqlash kodini yaratdik.
                 </p>
               </div>
+              <div className="bg-white/10 p-4 rounded-xl text-center mb-6">
+                <p className="text-sm text-white/60 mb-2">Sizning kodingiz (demo uchun):</p>
+                <div className="text-3xl font-bold tracking-widest text-primary">{verificationCode}</div>
+              </div>
               <div>
-                <label className="block text-sm text-white/80 mb-1">Tasdiqlash kodi</label>
+                <label className="block text-sm text-white/80 mb-1">Kodni kiriting</label>
                 <input 
                   type="text" 
                   value={verificationCode} 

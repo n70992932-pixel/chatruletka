@@ -247,7 +247,7 @@ app.post('/api/auth/register', async (req, res) => {
       `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
     );
 
-    res.json({ requiresVerification: true, email: sanitizedEmail });
+    res.json({ requiresVerification: true, email: sanitizedEmail, verificationCode });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server xatosi" });
@@ -284,7 +284,7 @@ app.post('/api/auth/login', async (req, res) => {
         `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
       );
 
-      return res.json({ requiresVerification: true, email: sanitizedEmail });
+      return res.json({ requiresVerification: true, email: sanitizedEmail, verificationCode });
     }
 
     const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
