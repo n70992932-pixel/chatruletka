@@ -34,30 +34,33 @@ app.set('trust proxy', 1);
 // 1. Helmet — HTTP xavfsizlik headerlari
 app.use(helmet());
 
-// Email yuborish — Resend HTTP API (SMTP emas, shuning uchun Render'da ishlaydi)
+// Email yuborish — Brevo HTTP API (SMTP emas, domen talab qilmaydi, Render'da ishlaydi)
 const sendEmail = async (to, subject, text) => {
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  if (!RESEND_API_KEY) {
-    console.warn('[EMAIL] RESEND_API_KEY topilmadi, xat yuborilmaydi.');
+  const BREVO_API_KEY = process.env.BREVO_API_KEY;
+  const SENDER_EMAIL = process.env.SENDER_EMAIL || 'noreply@chatruletka.com';
+  const SENDER_NAME = process.env.SENDER_NAME || 'Chatruletka';
+  
+  if (!BREVO_API_KEY) {
+    console.warn('[EMAIL] BREVO_API_KEY topilmadi, xat yuborilmaydi.');
     return;
   }
   try {
-    const response = await fetch('https://api.resend.com/emails', {
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'api-key': BREVO_API_KEY,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Chatruletka <onboarding@resend.dev>',
-        to: [to],
+        sender: { name: SENDER_NAME, email: SENDER_EMAIL },
+        to: [{ email: to }],
         subject,
-        text
+        textContent: text
       })
     });
     const data = await response.json();
     if (response.ok) {
-      console.log(`[EMAIL] ✅ ${to} ga xat yuborildi! ID: ${data.id}`);
+      console.log(`[EMAIL] ✅ ${to} ga xat yuborildi!`);
     } else {
       console.error(`[EMAIL] ❌ Xatolik:`, data);
     }
