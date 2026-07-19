@@ -28,6 +28,9 @@ const ALLOWED_ORIGINS = [
 
 const app = express();
 
+// Trust proxy BIRINCHI — Render reverse proxy uchun (rate limiter to'g'ri ishlashi uchun)
+app.set('trust proxy', 1);
+
 // 1. Helmet — HTTP xavfsizlik headerlari
 app.use(helmet());
 
@@ -37,7 +40,10 @@ const transporter = nodemailer.createTransport({
   auth: {
     user: process.env.GMAIL_USER,
     pass: process.env.GMAIL_PASS
-  }
+  },
+  connectionTimeout: 5000,
+  greetingTimeout: 5000,
+  socketTimeout: 10000
 });
 
 // 2. CORS — faqat ruxsat berilgan manzillardan
@@ -75,7 +81,7 @@ const generalLimiter = rateLimit({
 app.use('/api/', generalLimiter);
 app.use('/api/auth/', authLimiter);
 
-app.set('trust proxy', 1); // Render uchun kerak
+// trust proxy yuqorida sozlangan
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -273,13 +279,21 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.post('/api/auth/verify', async (req, res) => {
+  const startTime = Date.now();
+  console.log('[VERIFY] So\'rov boshlandi');
   try {
     const { email, code } = req.body;
     if (!email || !code) return res.status(400).json({ error: "Barcha maydonlarni to'ldiring." });
 
     const sanitizedEmail = validator.normalizeEmail(email);
+    console.log(`[VERIFY] Email: ${sanitizedEmail}, Kod: ${code}, DB connected: ${dbService.isConnected()}`);
+
     const user = await findUserByEmail(sanitizedEmail);
+    console.log(`[VERIFY] Foydalanuvchi topildi: ${!!user}, vaqt: ${Date.now() - startTime}ms`);
+
     if (!user) return res.status(404).json({ error: "Foydalanuvchi topilmadi." });
+
+    console.log(`[VERIFY] isVerified: ${user.isVerified}, verificationCode DB: ${user.verificationCode}, kiritilgan: ${code.trim()}`);
 
     if (user.isVerified) return res.status(400).json({ error: "Akkaunt allaqachon tasdiqlangan." });
 
@@ -295,11 +309,13 @@ app.post('/api/auth/verify', async (req, res) => {
       user.verificationCode = null;
       await updateUser(user);
     }
+    console.log(`[VERIFY] Yangilandi, vaqt: ${Date.now() - startTime}ms`);
 
     const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
+    console.log(`[VERIFY] ✅ Muvaffaqiyat! Jami vaqt: ${Date.now() - startTime}ms`);
     res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender: user.gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
   } catch (err) {
-    console.error(err);
+    console.error(`[VERIFY] ❌ Xatolik (${Date.now() - startTime}ms):`, err.message || err);
     res.status(500).json({ error: "Server xatosi" });
   }
 });
