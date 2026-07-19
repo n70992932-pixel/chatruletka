@@ -11,7 +11,7 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const validator = require('validator');
-const nodemailer = require('nodemailer');
+// nodemailer o'rniga Resend HTTP API ishlatiladi (Render SMTP blokini chetlab o'tish uchun)
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY || 'sk_test_mock');
 const dbService = require('./db');
 const User = require('./models/User');
@@ -34,17 +34,37 @@ app.set('trust proxy', 1);
 // 1. Helmet — HTTP xavfsizlik headerlari
 app.use(helmet());
 
-// Email yuborish sozlamalari (Nodemailer)
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.GMAIL_USER,
-    pass: process.env.GMAIL_PASS
-  },
-  connectionTimeout: 5000,
-  greetingTimeout: 5000,
-  socketTimeout: 10000
-});
+// Email yuborish — Resend HTTP API (SMTP emas, shuning uchun Render'da ishlaydi)
+const sendEmail = async (to, subject, text) => {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  if (!RESEND_API_KEY) {
+    console.warn('[EMAIL] RESEND_API_KEY topilmadi, xat yuborilmaydi.');
+    return;
+  }
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${RESEND_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        from: 'Chatruletka <onboarding@resend.dev>',
+        to: [to],
+        subject,
+        text
+      })
+    });
+    const data = await response.json();
+    if (response.ok) {
+      console.log(`[EMAIL] ✅ ${to} ga xat yuborildi! ID: ${data.id}`);
+    } else {
+      console.error(`[EMAIL] ❌ Xatolik:`, data);
+    }
+  } catch (err) {
+    console.error(`[EMAIL] ❌ ${to} ga xat jo'natishda xatolik:`, err.message);
+  }
+};
 
 // 2. CORS — faqat ruxsat berilgan manzillardan
 app.use(cors({
@@ -218,14 +238,11 @@ app.post('/api/auth/register', async (req, res) => {
 
     console.log(`[AUTH] Yangi ro'yxatdan o'tish: ${sanitizedEmail}. KOD: ${verificationCode}`);
 
-    transporter.sendMail({
-      from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
-      to: sanitizedEmail,
-      subject: 'Chatruletka - Elektron pochtani tasdiqlash',
-      text: `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
-    }).catch(mailErr => {
-      console.error(`[EMAIL ERROR] ${sanitizedEmail} ga xat jo'natishda xatolik:`, mailErr.message || mailErr);
-    });
+    sendEmail(
+      sanitizedEmail,
+      'Chatruletka - Elektron pochtani tasdiqlash',
+      `Assalomu alaykum, ${name.trim()}!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+    );
 
     res.json({ requiresVerification: true, email: sanitizedEmail });
   } catch (err) {
@@ -258,14 +275,11 @@ app.post('/api/auth/login', async (req, res) => {
 
       console.log(`[AUTH] Qayta login orqali xat yuborish: ${sanitizedEmail}. KOD: ${verificationCode}`);
 
-      transporter.sendMail({
-        from: `"Chatruletka" <${process.env.GMAIL_USER}>`,
-        to: sanitizedEmail,
-        subject: 'Chatruletka - Elektron pochtani tasdiqlash (Qayta yuborildi)',
-        text: `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
-      }).catch(mailErr => {
-        console.error(`[EMAIL ERROR] ${sanitizedEmail} ga qayta xat jo'natishda xatolik:`, mailErr.message || mailErr);
-      });
+      sendEmail(
+        sanitizedEmail,
+        'Chatruletka - Elektron pochtani tasdiqlash (Qayta yuborildi)',
+        `Assalomu alaykum!\n\nSizning tasdiqlash kodingiz: ${verificationCode}\n\nKodni tizimga kiritib ro'yxatdan o'tishni yakunlang.`
+      );
 
       return res.json({ requiresVerification: true, email: sanitizedEmail });
     }
