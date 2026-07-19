@@ -288,8 +288,13 @@ app.post('/api/auth/verify', async (req, res) => {
     }
 
     // Kod to'g'ri, tasdiqlaymiz
-    const updates = { isVerified: true, verificationCode: null };
-    await updateUser({ ...user, ...updates });
+    if (dbService.isConnected()) {
+      await User.updateOne({ email: sanitizedEmail }, { $set: { isVerified: true, verificationCode: null } });
+    } else {
+      user.isVerified = true;
+      user.verificationCode = null;
+      await updateUser(user);
+    }
 
     const token = jwt.sign({ userId: user._id || user.id }, JWT_SECRET, { expiresIn: '7d' });
     res.json({ token, user: { id: user._id || user.id, name: user.name, age: user.age, gender: user.gender, country: user.country, isBanned: user.isBanned, isPremium: user.isPremium, isAdmin: user.isAdmin } });
