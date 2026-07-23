@@ -187,7 +187,7 @@ function App() {
       setMessages([]); 
       
       const peerConfig = turnServers ? { iceServers: turnServers } : undefined;
-      const peer = new Peer({ initiator: data.initiator, trickle: false, stream: stream, config: peerConfig });
+      const peer = new Peer({ initiator: data.initiator, trickle: false, stream: localStreamRef.current, config: peerConfig });
 
       peer.on('signal', (signalData) => {
         if (data.initiator) newSocket.emit('offer', { room: data.room, offer: signalData });
